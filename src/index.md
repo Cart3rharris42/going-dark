@@ -1,5 +1,5 @@
 # Going Dark
-### Where ships disappear from tracking
+### Where do ships disappear from tracking? <br> 1 year of data from 2025-2026
 
 ```js
 const gaps = FileAttachment("data/global_gaps_clean.json").json();
@@ -37,19 +37,99 @@ function bucket(c) {
 ```
 
 ```js
-// Dropdown to choose which vessel class is shown.
-const selectedClass = view(
-  Inputs.select(
-    ["fishing", "cargo", "passenger", "carrier", "seismic_vessel", "other"],
-    {label: "Vessel class", value: "fishing"}
-  )
+// vessel class selection
+const classInput = Inputs.select(
+  ["fishing", "cargo", "passenger", "carrier", "seismic_vessel", "other"],
+  {label: "Vessel class", value: "fishing"}
 );
+const selectedClass = (stepIndex >= 0)
+  ? tourSteps[stepIndex].vesselClass
+  : Generators.input(classInput);
+
+display(classInput);
 ```
+
+
 ```js
 const showLines = view(
-  Inputs.toggle({label: "Show lines to eventual destination?", value: true})
+  Inputs.toggle({label: "Show lines to eventual destination on hover?", value: true})
 );
 ```
+
+```js
+const tourSteps = [
+  {
+    label: "Fishing · Argentine Shelf",
+    vesselClass: "fishing",
+    center: [-60, -45], k: 5,
+    text: [
+      "International regulations generally forbid fishing within 200 miles of the coast. This region is called an Economic Exclusion Zone (EEZ)",
+      "'Mile 201' is then a common location for ships to go dark",
+      "","",
+      "The high seas edge of Argentina's economic zone is a major hotspot. Squid jiggers go dark to mask fishing at this 200 mile boundary."
+    ],
+    source: "https://zenodo.org/records/4893397",
+    sourceLabel: "Oceana (2021)"
+  },
+  {
+    label: "Fishing · Galápagos & Peru",
+    vesselClass: "fishing",
+    center: [-88, -8], k: 4,
+    text: [
+      "The same distant water squid fleet works the Pacific side, skirting the EEZ around Ecuador's and down past Peru."
+    ],
+    source: "https://maritime-executive.com/editorials/south-america-plans-regional-response-to-china-s-squid-fleet",
+    sourceLabel: "Maritime Executive (2021)"
+  },
+  {
+    label: "Cargo · Africa–Middle East corridor",
+    vesselClass: "cargo",
+    center: [50, 12], k: 2.5,
+    text: [
+      "Cargo and tanker gaps tell a different story: sanctions evasion.",
+      "A near continuous line of dark fleet disabling traces the East African coast, the Red Sea and the Gulf.",
+      "These ships are likely tankers going dark to move sanctioned oil, then reappearing downstream."
+    ],
+    source: "https://www.nber.org/system/files/working_papers/w33486/w33486.pdf",
+    sourceLabel: "NBER (2025)"
+  }
+];
+```
+```js
+// tour step
+const stepIndex = Mutable(0);
+const setStep = (i) => stepIndex.value = i;
+```
+
+```js
+const i = stepIndex;
+
+let panel;
+
+if (i < 0) {
+  panel = html`<div>
+    Tour complete. Explore the map freely using the dropdown.
+  </div>`;
+} else {
+  const step = tourSteps[i];
+  const isLast = i >= tourSteps.length - 1;
+
+  panel = html`<div>
+    <strong>${step.label}</strong> (${i + 1} / ${tourSteps.length})
+    ${step.text.map(line => html`<p>${line}</p>`)}
+    <a href=${step.source} target="_blank">Source: ${step.sourceLabel}</a>
+    <br>
+    <button onclick=${() => setStep(isLast ? -1 : i + 1)}>
+      ${isLast ? "Explore the map" : "Next hotspot"}
+    </button>
+  </div>`;
+}
+
+display(panel);
+```
+
+
+
 ```js
 // Filter for a valid position/dropdown selection only
 const filtered = gaps.filter(
@@ -190,9 +270,34 @@ svg.on("mousemove", (event) => {
 
 svg.on("mouseleave", () => lineLayer.selectAll("line").remove());
 
+if (stepIndex >= 0) { //actually step through tour
+  const step = tourSteps[stepIndex];
+  const [cx, cy] = projection(step.center);  
+  const t = d3.zoomIdentity
+      .translate(width / 2, height / 2)       
+      .scale(step.k)                          
+      .translate(-cx, -cy);                    
+  svg.transition().duration(1200).call(zoom.transform, t);
+}
+
 display(svg.node());
 ```
 
 ---
 
 [View the source code on GitHub](https://github.com/Cart3rharris42/going-dark)
+
+---
+
+## Sources
+
+Data from [Global Fishing Watch](https://globalfishingwatch.org), AIS-disabling ("gap") events dataset. 
+
+context drawn from:
+
+- Welch, H. et al. (2022). "Hot spots of unseen fishing vessels." *Science Advances.* https://www.science.org/doi/10.1126/sciadv.abq2109
+- Oceana (2021). "Now You See Me, Now You Don't: Vanishing Vessels Along Argentina's Waters." https://zenodo.org/records/4893397
+- Park, J. et al. (2020). "Illuminating dark fishing fleets in North Korea." *Science Advances*, via Global Fishing Watch. https://globalfishingwatch.org/success-story/illuminating-dark-fishing-in-north-korea/
+- Maritime Executive (2021). "South America Plans Regional Response to China's Squid Fleet." https://maritime-executive.com/editorials/south-america-plans-regional-response-to-china-s-squid-fleet
+- National Bureau of Economic Research (2025). "The (Un)Intended Consequences of Oil Sanctions and Dark Shipping." https://www.nber.org/system/files/working_papers/w33486/w33486.pdf
+- Global Fishing Watch. "Going Dark: When Vessels Turn Off AIS Broadcasts." https://globalfishingwatch.org/data/going-dark-when-vessels-turn-off-ais-broadcasts/
