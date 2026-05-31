@@ -10,6 +10,15 @@ Then, to start the local preview server, run:
 
 ```
 npm run dev
+cd C:\Users\scien\documents\CSC477\going_dark
+git add .
+git commit -m "describe changes"
+git push
+
+
+
+
+
 ```
 
 Then visit <http://localhost:3000> to preview your app.
